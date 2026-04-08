@@ -1,4 +1,4 @@
-# PMIx ReFrame Test Suite
+# PMIx  ReFrame Test
 
 This repository contains a [ReFrame](https://reframe-hpc.readthedocs.io/en/stable/)-based test  designed to build and test the PMIx component.
 
@@ -23,7 +23,7 @@ The test suite is divided into modular ReFrame fixtures and tests, separated by 
 4. **`run_pmix_test.py`**:
    - **`fetch_pmixtest`**: Clones the `openpmix/pmix-tests` GitHub repository.
    - **`base_test`**: The base ReFrame class for the test runs. It depends on all previous build fixtures (`build_prrte`, `build_pmix`, `build_libevent`) and configures `PATH` and `LD_LIBRARY_PATH` dynamically to ensure the tests use the locally built binaries and libraries.
-   - **Individual Tests**: 
+   - **Individual Tests**:
      - `hello_test`
      - `cycle_test`
      - `prun_wrapper_test`
