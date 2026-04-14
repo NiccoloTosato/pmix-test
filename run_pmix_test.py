@@ -90,7 +90,6 @@ class prun_wrapper_test(base_test):
     def compile_test(self):
         test_dir_base = self.pmix_tests.stagedir
         test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
-        print(test_path)
         self.prerun_cmds = [ f'cd {test_path}', './build.sh', 'scontrol show hostnames $SLURM_JOB_NODELIST > hostfile.txt' ]    
         self.executable="./run.sh"
         self.env_vars['CI_HOSTFILE'] = f"{os.path.join(test_path,'hostfile.txt')}"
