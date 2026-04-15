@@ -7,15 +7,17 @@ from libevent_build_class import fetch_libevent,build_libevent
 
 class fetch_pmix(rfm.RunOnlyRegressionTest):
     descr = "Fetch pmix"
-    version = variable(str,value = os.getenv('PMIX_VERSION','6.1.0'))
-    url = f"https://github.com/openpmix/openpmix/releases/download/v{version}/pmix-{version}.tar.gz"
+    version = variable(str,value= '6.1.0')
     executable = 'wget'
-    executable_opts = [f"{url}"]
     local = True
     @sanity_function
     def validate_download(self):
         return sn.assert_eq(self.job.exitcode,0)
-
+    @run_before('run')
+    def prepare_download(self):
+        self.url = f"https://github.com/openpmix/openpmix/releases/download/v{self.version}/pmix-{self.version}.tar.gz"
+        self.executable_opts = [f"{self.url}"]
+        
 
 class build_pmix(rfm.CompileOnlyRegressionTest):
     descr = 'Build pmix'

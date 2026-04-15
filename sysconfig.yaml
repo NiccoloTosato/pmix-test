@@ -14,9 +14,4 @@ systems:
 
 environments:
 - name: pmix_test
-  env_vars:
-  - ['PMIX_VERSION', '6.1.0']
-  - ['LIBEVENT_VERSION', '2.1.12']
-  - ['PRRTE_VERSION', '4.1.0']
-
 

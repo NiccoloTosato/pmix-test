@@ -8,15 +8,18 @@ from pmix_build_class import build_pmix
 
 class fetch_prrte(rfm.RunOnlyRegressionTest):
     descr = "Fetch prrte"
-    version = variable(str,value = os.getenv('PRRTE_VERSION','4.1.0'))
-    url = f"https://github.com/openpmix/prrte/releases/download/v{version}/prrte-{version}.tar.gz"
+    version = variable(str,value='4.1.0')
     executable = 'wget'
-    executable_opts = [f"{url}"]
     local = True
     @sanity_function
     def validate_download(self):
         return sn.assert_eq(self.job.exitcode,0)
-    
+    @run_before('run')
+    def prepare_download(self):
+        self.url = f"https://github.com/openpmix/prrte/releases/download/v{self.version}/prrte-{self.version}.tar.gz"
+
+        self.executable_opts = [f"{self.url}"]
+        
 
 class build_prrte(rfm.CompileOnlyRegressionTest):
     descr = 'Build prrte'
