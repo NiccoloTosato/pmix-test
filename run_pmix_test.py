@@ -83,6 +83,7 @@ class base_test(rfm.RunOnlyRegressionTest):
     ld_library_path = list()
     num_cpus_per_task = 1
     time_limit = '0d0h5m0s'
+
     @run_before('run')
     def prepare_run(self):
         for fix in [self.prrte, self.pmix, self.libevent]:
@@ -93,9 +94,33 @@ class base_test(rfm.RunOnlyRegressionTest):
             "LD_LIBRARY_PATH" : ":".join(self.ld_library_path) + ":${LD_LIBRARY_PATH}"
         }
         self.executable = os.path.join("")
-        # prepare the environment, with LD and PATH
+    
+    def get_pmix_version(self):
+        # Pmix is a fixuter (build_pmix), but the actual version is container in the fixture fetch_pmix
+        return parse_version(self.pmix.pmix.version)
+    
+    def check_errors(self):
+        total_errors = sn.count(sn.findall(r'\bERROR\b', self.stderr))
+        if self.get_pmix_version()  == parse_version("6.1.0"):
+            # Ignore some errors from  pmix v6.1.0, we expect a race condition, see https://github.com/openpmix/prrte/issues/2431
+            known_bug_pattern = r'contact information is unknown in file iof_hnp\.c at line 222'
+            known_bugs = sn.count(sn.findall(known_bug_pattern, self.stderr))
+            # Assert that every 'ERROR' found is accounted for by the known bug
+            print(f"Known race condition count: {known_bugs}")
+            return sn.assert_eq(total_errors, known_bugs)
+        else:
+            return sn.assert_eq(total_errors, 0)
+
+    def check_host_count(self,expected_count = None ):
+        if expected_count is None:
+            expected_count = self.num_tasks
+        patt = self.current_system.hostnames[0]
+        line_count = sn.count(sn.extractall(patt,self.stdout,0))
+        return sn.assert_eq(line_count,expected_count)
+
     @sanity_function
     def retcode(self):
+        print("This is the baseclass sanity function")
         return sn.assert_eq(self.job.exitcode,0)
 
 
@@ -127,32 +152,9 @@ class hostname_test(base_test):
             conv=float            
         )
     @sanity_function
-    def check_output(self):
-        # Get the pattern to match the compute node
-        patt = self.current_system.hostnames[0]
-        line_count = sn.count(sn.extractall(patt,self.stdout,0))
-        # Append to flags all the deferrend functions
-        flags = list()
-        # 1. Count the number of line that match hostnames
-        flags.append(sn.assert_eq(line_count,self.num_tasks))
-        # 2. Check if there is ERROR in the stderr, count them
-        total_errors = sn.count(sn.findall(r'\bERROR\b', self.stderr))
-        
-        #TODO: find a smarter way to encapsulate versions !
-        current_version = parse_version(self.pmix.pmix.version)
-        known_broken_version = parse_version("6.1.0")
-        if current_version == known_broken_version:
-            # Ignore some errors from  pmix v6.1.0, we expect a race condition, see https://github.com/openpmix/prrte/issues/2431
-            known_bug_pattern = r'contact information is unknown in file iof_hnp\.c at line 222'
-            known_bugs = sn.count(sn.findall(known_bug_pattern, self.stderr))
-            # Assert that every 'ERROR' found is accounted for by the known bug
-            print(f"Bug count: {known_bugs}")
-            flags.append(sn.assert_eq(total_errors, known_bugs))
-        else:
-            flags.append(sn.assert_eq(total_errors, 0))
-        # Return the evaluation of flags! 
+    def check_test(self):
+        flags = [self.check_host_count(),self.check_errors()]
         return sn.all(flags)
-
         
 @rfm.simple_test
 class hello_world_test(base_test):
@@ -183,12 +185,9 @@ class hello_world_test(base_test):
         )
 
     @sanity_function
-    def count_output(self):
-        patt = self.current_system.hostnames[0]
-        #Extract the values
-        line_count = sn.count(sn.extractall(patt,self.stdout,0))
-        return sn.assert_eq(line_count,self.num_tasks)
-
+    def check_test(self):
+        flags = [self.check_host_count(),self.check_errors()]
+        return sn.all(flags)
 
 @rfm.simple_test
 class cycle_test(base_test):
@@ -197,11 +196,22 @@ class cycle_test(base_test):
     num_tasks = 120
     num_tasks_per_node = 12
     cycle_test = fixture(build_cycle,scope = 'environment')
+    num_iters=100
     @run_before("run")
     def prepare_test(self):
         test_path = self.cycle_test.test_path
-        self.prerun_cmds = [ f'cd {test_path}' ]    
-        self.executable="./run.sh"
+        self.prerun_cmds = [ f'cd {test_path}' , 'prte --no-ready-msg --report-uri dvm.uri &' ]    
+        cmd = f"prun --dvm-uri file:dvm.uri --num-connect-retries 1000 hostname"
+        one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
+        self.executable = 'bash'
+        self.executable_opts = ['-c', f"'{one_liner}'"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri"]
+    @sanity_function
+    def check_test(self):
+        flags = [self.check_host_count(expected_count=self.num_iters*self.num_tasks),
+                 self.check_errors()]
+        return sn.all(flags)
+
 
 @rfm.simple_test
 class prun_wrapper_test(base_test):
