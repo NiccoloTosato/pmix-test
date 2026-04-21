@@ -21,8 +21,11 @@ class base_test(rfm.RunOnlyRegressionTest):
     pmix_tests = fixture(fetch_pmixtest, scope = 'session')
     path = list()
     ld_library_path = list()
-    num_cpus_per_task = 1
+    
     time_limit = '0d0h5m0s'
+    num_tasks = 640
+    num_tasks_per_node = 32
+    num_cpus_per_task = 1
 
     @run_before('run')
     def prepare_run(self):
@@ -79,8 +82,6 @@ class base_test(rfm.RunOnlyRegressionTest):
 class hostname_test(base_test):
     descr = "Test pmix hostname"
     test_name = "hostname"
-    num_tasks = 120
-    num_tasks_per_node = 12
     hello_test = fixture(build_hello_world,scope = 'environment')
 
     @run_before("run")
@@ -91,7 +92,7 @@ class hostname_test(base_test):
         self.executable="time"
         self.executable_opts = ["prun", f"--map-by ppr:{self.num_tasks_per_node}:node", "hostname"]
         # At the end shutdown the dvm
-        self.postrun_cmds = ["pterm"]
+        self.postrun_cmds = ["pterm", "sleep 2"]
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),self.check_errors()]
@@ -101,8 +102,6 @@ class hostname_test(base_test):
 class hello_world_test(base_test):
     descr = "Test pmix hello_world"
     test_name = "hello_world"
-    num_tasks = 120
-    num_tasks_per_node = 12
     hello_test = fixture(build_hello_world,scope = 'environment')
     @run_before("run")
     def prepare_test(self):
@@ -112,7 +111,7 @@ class hello_world_test(base_test):
         self.executable="time"
         self.executable_opts = ["prun", f"--map-by ppr:{self.num_tasks_per_node}:node", "./hello"]
         # At the end shutdown the dvm
-        self.postrun_cmds = ["pterm"]
+        self.postrun_cmds = ["pterm", "sleep 2"]
 
 
     @sanity_function
@@ -124,8 +123,6 @@ class hello_world_test(base_test):
 class cycle_test_hostname(base_test):
     descr = "Test Cycle in pmix-test"
     test_name = "cycle"
-    num_tasks = 120
-    num_tasks_per_node = 12
     cycle_test = fixture(build_cycle,scope = 'environment')
     num_iters=100
 
@@ -137,7 +134,7 @@ class cycle_test_hostname(base_test):
         one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
         self.executable = 'time'
         self.executable_opts = ['bash','-c', f"'{one_liner}'"]
-        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_0"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_0", "sleep 2"]
 
     @sanity_function
     def check_test(self):
@@ -162,7 +159,7 @@ class cycle_test_initialize_finalize(base_test):
         one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
         self.executable = 'time'
         self.executable_opts = ['bash','-c', f"'{one_liner}'"]
-        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_1"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_1", "sleep 2"]
 
     @sanity_function
     def check_test(self):
@@ -174,8 +171,6 @@ class cycle_test_initialize_finalize(base_test):
 class cycle_test_initialize_finalize_multi(base_test):
     descr = "Test Cycle in pmix-test"
     test_name = "cycle"
-    num_tasks = 120
-    num_tasks_per_node = 12
     cycle_test = fixture(build_cycle,scope = 'environment')
     num_iters=100
 
@@ -187,7 +182,7 @@ class cycle_test_initialize_finalize_multi(base_test):
         one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
         self.executable = 'time'
         self.executable_opts = ['bash', '-c', f"'{one_liner}'"]
-        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_2"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_2", "sleep 2"]
 
     @sanity_function
     def check_test(self):
@@ -200,8 +195,6 @@ class cycle_test_initialize_finalize_multi(base_test):
 class prun_wrapper_test_hostname(base_test):
     descr = "Test prun-wrapper in pmix-test"
     test_name = "prun-wrapper"
-    num_tasks = 120
-    num_tasks_per_node = 12
     prun_test = fixture(build_prun_wrapper,scope = 'environment')
     @run_before("run")
     def prepare_test(self):
@@ -210,7 +203,7 @@ class prun_wrapper_test_hostname(base_test):
         cmd = f" prterun --map-by node hostname"
         self.executable = 'time'
         self.executable_opts = [ f"{cmd}"]
-
+        self.postrun_cmds = ["sleep 2"]
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),
@@ -221,8 +214,6 @@ class prun_wrapper_test_hostname(base_test):
 class prun_wrapper_test_hostname_absolute(base_test):
     descr = "Test prun-wrapper in pmix-test"
     test_name = "prun-wrapper"
-    num_tasks = 120
-    num_tasks_per_node = 12
     prun_test = fixture(build_prun_wrapper,scope = 'environment')
     @run_before("run")
     def prepare_test(self):
@@ -236,7 +227,7 @@ class prun_wrapper_test_hostname_absolute(base_test):
         cmd = f"$ABS_PATH/prterun --map-by node hostname"
         self.executable = 'time'
         self.executable_opts = [ f"{cmd}"]
-
+        self.postrun_cmds = ["sleep 2"]
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),
@@ -247,17 +238,15 @@ class prun_wrapper_test_hostname_absolute(base_test):
 class prun_wrapper_test_hello(base_test):
     descr = "Test prun-wrapper in pmix-test"
     test_name = "prun-wrapper"
-    num_tasks = 120
-    num_tasks_per_node = 12
     prun_test = fixture(build_prun_wrapper,scope = 'environment')
     @run_before("run")
     def prepare_test(self):
         test_path = self.prun_test.test_path
         self.prerun_cmds = [ f'cd {test_path}', 'TIMEFORMAT="runtime,%R,%U,%S"'  ]    
-        cmd = f" prterun --map-by node  ../hello_world/hello"
+        cmd = f"prterun --map-by node  ../hello_world/hello"
         self.executable = 'time'
         self.executable_opts = [ f"{cmd}"]
-
+        self.postrun_cmds = ["sleep 2"]
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),
