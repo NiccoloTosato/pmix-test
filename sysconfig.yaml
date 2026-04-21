@@ -1,7 +1,7 @@
 systems:
 - name: odo
   descr: Odo system.
-  hostnames: ['.*']
+  hostnames: ['odo\d+']
   partitions:
   - name: batch
     descr: Use nodes from the Slurm partition containing MI250X nodes

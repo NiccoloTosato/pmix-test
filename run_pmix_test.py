@@ -169,7 +169,7 @@ class hello_world_test(base_test):
         #1. Change folder 2. Init the DVM 3. set time output to be parsable later
         self.prerun_cmds = [ f'cd {test_path}', 'prte --no-ready-msg &', 'TIMEFORMAT="runtime,%R,%U,%S"','sleep 5']
         self.executable="time"
-        self.executable_opts = ["prun", f"--map-by ppr:{self.num_tasks_per_node}:node", "hostname"]
+        self.executable_opts = ["prun", f"--map-by ppr:{self.num_tasks_per_node}:node", "./hello"]
         # At the end shutdown the dvm
         self.postrun_cmds = ["pterm"]
 
@@ -286,7 +286,7 @@ class cycle_test_initialize_finalize_multi(base_test):
 
 
 @rfm.simple_test
-class prun_wrapper_test(base_test):
+class prun_wrapper_test_hostname(base_test):
     descr = "Test prun-wrapper in pmix-test"
     test_name = "prun-wrapper"
     num_tasks = 120
@@ -295,6 +295,91 @@ class prun_wrapper_test(base_test):
     @run_before("run")
     def prepare_test(self):
         test_path = self.prun_test.test_path
-        self.prerun_cmds = [ f'cd {test_path}', 'scontrol show hostnames $SLURM_JOB_NODELIST > hostfile.txt' ]    
-        self.executable="./run.sh"
-        self.env_vars['CI_HOSTFILE'] = f"{os.path.join(test_path,'hostfile.txt')}"
+        self.prerun_cmds = [ f'cd {test_path}', 'TIMEFORMAT="runtime,%R,%U,%S"'  ]    
+        cmd = f" prterun --map-by node hostname"
+        self.executable = 'time'
+        self.executable_opts = [ f"{cmd}"]
+
+    @performance_function('s')
+    def walltime(self):
+        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
+        # Extract the values
+        return sn.extractsingle(
+            patt, 
+            self.stderr,          
+            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
+            conv=float            
+        )
+    @sanity_function
+    def check_test(self):
+        flags = [self.check_host_count(),
+                 self.check_errors()]
+        return sn.all(flags)
+
+@rfm.simple_test
+class prun_wrapper_test_hostname_absolute(base_test):
+    descr = "Test prun-wrapper in pmix-test"
+    test_name = "prun-wrapper"
+    num_tasks = 120
+    num_tasks_per_node = 12
+    prun_test = fixture(build_prun_wrapper,scope = 'environment')
+    @run_before("run")
+    def prepare_test(self):
+        test_path = self.prun_test.test_path
+        self.prerun_cmds = [
+            f'cd {test_path}',
+            'TIMEFORMAT="runtime,%R,%U,%S"',
+            'ABS_PATH=$(which prterun)',
+            'ABS_PATH=$(dirname $ABS_PATH)'
+        ]
+        cmd = f"$ABS_PATH/prterun --map-by node hostname"
+        self.executable = 'time'
+        self.executable_opts = [ f"{cmd}"]
+
+    @performance_function('s')
+    def walltime(self):
+        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
+        # Extract the values
+        return sn.extractsingle(
+            patt, 
+            self.stderr,          
+            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
+            conv=float            
+        )
+    @sanity_function
+    def check_test(self):
+        flags = [self.check_host_count(),
+                 self.check_errors()]
+        return sn.all(flags)
+
+@rfm.simple_test
+class prun_wrapper_test_hello(base_test):
+    descr = "Test prun-wrapper in pmix-test"
+    test_name = "prun-wrapper"
+    num_tasks = 120
+    num_tasks_per_node = 12
+    prun_test = fixture(build_prun_wrapper,scope = 'environment')
+    @run_before("run")
+    def prepare_test(self):
+        test_path = self.prun_test.test_path
+        self.prerun_cmds = [ f'cd {test_path}', 'TIMEFORMAT="runtime,%R,%U,%S"'  ]    
+        cmd = f" prterun --map-by node  ../hello_world/hello"
+        self.executable = 'time'
+        self.executable_opts = [ f"{cmd}"]
+
+    @performance_function('s')
+    def walltime(self):
+        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
+        # Extract the values
+        return sn.extractsingle(
+            patt, 
+            self.stderr,          
+            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
+            conv=float            
+        )
+
+    @sanity_function
+    def check_test(self):
+        flags = [self.check_host_count(),
+                 self.check_errors()]
+        return sn.all(flags)
